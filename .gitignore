@@ -1,0 +1,7 @@
+outputs/ 
+__pycache__/ 
+.idea/ 
+.pytest_cache/ 
+cache_dir/ 
+runs/ 
+.vscode/ 

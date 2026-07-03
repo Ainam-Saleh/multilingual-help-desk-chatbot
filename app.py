@@ -33,14 +33,14 @@ def ensure_model_downloaded():
 
 # ============================================================
 # PAGE CONFIGURATION
-# No sidebar — everything lives in a top control bar instead.
+# Sidebar holds language selection + chat management.
 # ============================================================
 def setup_page_config():
     st.set_page_config(
         page_title="NileAssist - Multilingual Q&A Chat",
         page_icon="🎓",
         layout="centered",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="expanded"
     )
 
 
@@ -78,7 +78,7 @@ def apply_custom_css():
         }
 
         .block-container {
-           padding-top: 2rem !important;
+           padding-top: 3.5rem !important;
            padding-bottom: 1rem !important;
            max-width: 760px !important;
         }
@@ -114,6 +114,50 @@ def apply_custom_css():
             font-size: 15px;
             color: var(--sage);
             margin: 0 0 18px;
+        }
+
+        /* ---------- Sidebar ---------- */
+        [data-testid="stSidebar"] {
+            background: var(--ink);
+        }
+
+        [data-testid="stSidebar"] .stMarkdown p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] .stMarkdown li {
+            color: #E9E7E1 !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #E9E7E1 !important;
+            font-family: 'Newsreader', serif !important;
+            font-weight: 500 !important;
+        }
+
+        [data-testid="stSidebar"] hr {
+            border-color: rgba(233,231,225,0.15);
+        }
+
+        /* Alert boxes inside the sidebar keep their own light
+           background + dark text for readability. */
+        [data-testid="stSidebar"] [data-testid="stAlert"] p {
+            color: var(--ink) !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+           background: rgba(255,255,255,0.08) !important;
+           border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div > div {
+            color: #E9E7E1 !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stExpander"] summary {
+            background: rgba(255,255,255,0.06);
+            color: #E9E7E1;
         }
 
         /* ---------- Control bar ---------- */
@@ -182,8 +226,15 @@ def apply_custom_css():
             box-shadow: none;
         }
 
+        /* Explicit text color so the bubble stays readable even when
+           the browser/Streamlit theme is set to Dark — otherwise the
+           default dark-mode text color (light gray) ends up almost
+           invisible against our always-white bubble background. */
+        [data-testid="stChatMessage"] p,
+        [data-testid="stChatMessage"] li,
+        [data-testid="stChatMessage"] span,
         [data-testid="stChatMessageContent"] {
-            background-color: transparent;
+            color: var(--ink) !important;
         }
 
         [data-testid="stChatInput"] {
@@ -422,23 +473,29 @@ def render_header():
 
 
 # ============================================================
-# CONTROL BAR
-# Language selection + chat management, replacing the old sidebar.
+# SIDEBAR
+# Language selection + chat management.
 # ============================================================
-def render_control_bar():
+def render_sidebar():
     lang_map = {"English": "en", "Hausa": "ha", "Yoruba": "yo", "Igbo": "ig"}
 
-    col1, col2 = st.columns(2)
-    with col1:
+    with st.sidebar:
+        st.markdown("### 🎓 NileAssist")
+        st.markdown("---")
+
+        st.markdown("#### Language")
         from_lang = st.selectbox("Question language", options=list(lang_map.keys()), index=0, key="from_lang")
-    with col2:
         to_lang = st.selectbox("Response language", options=list(lang_map.keys()), index=0, key="to_lang")
 
-    st.session_state.source_lang = lang_map[from_lang]
-    st.session_state.target_lang = lang_map[to_lang]
+        st.session_state.source_lang = lang_map[from_lang]
+        st.session_state.target_lang = lang_map[to_lang]
 
-    if st.session_state.messages:
-        with st.expander("Manage chat"):
+        st.markdown("---")
+        st.markdown("#### Manage chat")
+
+        if not st.session_state.messages:
+            st.caption("No messages yet.")
+        else:
             questions = [
                 (i, msg["content"][:40] + "..." if len(msg["content"]) > 40 else msg["content"])
                 for i, msg in enumerate(st.session_state.messages)
@@ -452,20 +509,14 @@ def render_control_bar():
             )
             selected_index = next((q[0] for q in questions if q[1] == selected_label), None)
 
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown('<div class="na-primary-btn">', unsafe_allow_html=True)
-                if st.button("Delete this exchange", use_container_width=True):
-                    if selected_index is not None:
-                        del st.session_state.messages[selected_index:selected_index + 2]
-                        st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
-            with c2:
-                if st.button("Clear all", use_container_width=True):
-                    st.session_state.messages = []
+            if st.button("Delete this exchange", use_container_width=True):
+                if selected_index is not None:
+                    del st.session_state.messages[selected_index:selected_index + 2]
                     st.rerun()
 
-    st.markdown("---")
+            if st.button("Clear all", use_container_width=True):
+                st.session_state.messages = []
+                st.rerun()
 
 
 # ============================================================
@@ -504,8 +555,8 @@ def main():
     apply_custom_css()
     initialize_session_state()
 
+    render_sidebar()
     render_header()
-    render_control_bar()
 
     if len(st.session_state.messages) == 0:
         render_welcome_message()

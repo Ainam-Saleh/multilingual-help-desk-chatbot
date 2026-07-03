@@ -2,3 +2,4 @@ streamlit
 torch 
 simpletransformers 
 deep-translator 
+gdown

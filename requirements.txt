@@ -1,13 +1,6 @@
 streamlit
 torch
-transformers==4.30.2
-tokenizers==0.13.3
-datasets==2.14.7
-pyarrow==14.0.2
-huggingface_hub==0.16.4
-simpletransformers==0.65.1
+simpletransformers
 deep-translator
 gdown
-pandas
-scikit-learn
-seqeval
+pyarrow<21

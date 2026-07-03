@@ -103,7 +103,11 @@ def apply_custom_css():
             background: var(--ink);
         }
 
-        [data-testid="stSidebar"] * {
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] li,
+        [data-testid="stSidebar"] .stMarkdown {
             color: #F6F4EF !important;
             font-family: 'Inter', sans-serif;
         }
@@ -111,8 +115,26 @@ def apply_custom_css():
         [data-testid="stSidebar"] h1,
         [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3 {
+            color: #F6F4EF !important;
             font-family: 'Newsreader', serif !important;
             font-weight: 500 !important;
+        }
+
+        /* Don't touch icon fonts (e.g. the sidebar collapse arrow) —
+           overriding their font-family breaks the icon glyph. */
+        [data-testid="stSidebar"] [data-testid="stIconMaterial"],
+        [data-testid="stSidebar"] [class*="material-symbols"] {
+            font-family: 'Material Symbols Outlined' !important;
+            color: #F6F4EF !important;
+        }
+
+        /* Keep success/warning/info/error alert text dark and readable
+           against their own light backgrounds, even inside the dark sidebar. */
+        [data-testid="stSidebar"] [data-testid="stAlertContentSuccess"] *,
+        [data-testid="stSidebar"] [data-testid="stAlertContentWarning"] *,
+        [data-testid="stSidebar"] [data-testid="stAlertContentInfo"] *,
+        [data-testid="stSidebar"] [data-testid="stAlertContentError"] * {
+            color: var(--ink) !important;
         }
 
         h1, h2, h3 {

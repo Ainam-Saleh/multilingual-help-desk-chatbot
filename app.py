@@ -82,8 +82,22 @@ def apply_custom_css():
             --indigo: #2F4B7C;
             --ochre: #C98A2C;
             --sage: #5F6E5C;
+            --sidebar-text: #E9E7E1;
         }
 
+        /* ---------- Safety net: icon fonts are never touched ----------
+           Placed first and kept broad on purpose. Icons render via
+           ligature fonts (e.g. Material Symbols) where the visible
+           "text" is really an icon name — overriding font-family
+           breaks them. This rule always wins on specificity against
+           the plainer text rules below. */
+        [data-testid*="Icon"],
+        [class*="material-symbols"],
+        [class*="material-icons"] {
+            font-family: revert !important;
+        }
+
+        /* ---------- Base page ---------- */
         .main {
             background: var(--paper);
         }
@@ -99,51 +113,68 @@ def apply_custom_css():
             color: var(--ink);
         }
 
-        [data-testid="stSidebar"] {
-            background: var(--ink);
-        }
-
-        [data-testid="stSidebar"] p,
-        [data-testid="stSidebar"] span,
-        [data-testid="stSidebar"] label,
-        [data-testid="stSidebar"] li,
-        [data-testid="stSidebar"] .stMarkdown {
-            color: #F6F4EF !important;
-            font-family: 'Inter', sans-serif;
-        }
-
-        [data-testid="stSidebar"] h1,
-        [data-testid="stSidebar"] h2,
-        [data-testid="stSidebar"] h3 {
-            color: #F6F4EF !important;
-            font-family: 'Newsreader', serif !important;
-            font-weight: 500 !important;
-        }
-
-        /* Don't touch icon fonts (e.g. the sidebar collapse arrow) —
-           overriding their font-family breaks the icon glyph. */
-        [data-testid="stSidebar"] [data-testid="stIconMaterial"],
-        [data-testid="stSidebar"] [class*="material-symbols"] {
-            font-family: 'Material Symbols Outlined' !important;
-            color: #F6F4EF !important;
-        }
-
-        /* Keep success/warning/info/error alert text dark and readable
-           against their own light backgrounds, even inside the dark sidebar. */
-        [data-testid="stSidebar"] [data-testid="stAlertContentSuccess"] *,
-        [data-testid="stSidebar"] [data-testid="stAlertContentWarning"] *,
-        [data-testid="stSidebar"] [data-testid="stAlertContentInfo"] *,
-        [data-testid="stSidebar"] [data-testid="stAlertContentError"] * {
-            color: var(--ink) !important;
-        }
-
         h1, h2, h3 {
             font-family: 'Newsreader', serif;
             color: var(--ink);
             font-weight: 500;
         }
 
-        .stChatMessage {
+        /* ---------- Sidebar ---------- */
+        [data-testid="stSidebar"] {
+            background: var(--ink);
+        }
+
+        [data-testid="stSidebar"] .stMarkdown p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] .stMarkdown li {
+            color: var(--sidebar-text) !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: var(--sidebar-text) !important;
+            font-family: 'Newsreader', serif !important;
+            font-weight: 500 !important;
+        }
+
+        [data-testid="stSidebar"] hr {
+            border-color: rgba(233,231,225,0.15);
+        }
+
+        /* Alert boxes (success/warning/info/error) keep their own
+           light backgrounds and dark text for readability, even
+           inside the dark sidebar — deliberately NOT overridden
+           to match the sidebar text color. */
+        [data-testid="stSidebar"] [data-testid="stAlert"] p {
+            color: var(--ink) !important;
+        }
+
+        /* ---------- Buttons ---------- */
+        .stButton > button {
+            background: var(--ochre);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            padding: 10px 26px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .stButton > button:hover {
+            background: var(--indigo);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .stButton > button p {
+            color: inherit !important;
+        }
+
+        /* ---------- Chat ---------- */
+        [data-testid="stChatMessage"] {
             background-color: #FFFFFF;
             border: 1px solid rgba(27,36,48,0.12);
             border-radius: 10px;
@@ -156,6 +187,15 @@ def apply_custom_css():
             background-color: transparent;
         }
 
+        [data-testid="stChatInput"] {
+            border-top: 1px solid rgba(27,36,48,0.12);
+        }
+
+        [data-testid="stChatInput"] textarea {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* ---------- Metrics ---------- */
         [data-testid="stMetricValue"] {
             font-family: 'Newsreader', serif;
             font-size: 26px;
@@ -170,45 +210,22 @@ def apply_custom_css():
             color: var(--sage);
         }
 
-        .stButton>button {
-            background: var(--ochre);
-            color: white;
-            border: none;
-            border-radius: 100px;
-            padding: 10px 26px;
-            font-weight: 500;
-            font-family: 'Inter', sans-serif;
-            transition: transform 0.15s ease, background 0.15s ease;
+        /* ---------- Alerts (main content area) ---------- */
+        [data-testid="stAlert"] {
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            border-left: 3px solid var(--ochre);
         }
 
-        .stButton>button:hover {
-            background: var(--indigo);
-            transform: translateY(-1px);
-        }
-
-        [data-testid="stSidebar"] .stButton>button {
-            background: var(--ochre);
-            color: white;
-        }
-
-        .stChatInputContainer {
-            border-top: 1px solid rgba(27,36,48,0.12);
-            padding-top: 20px;
-        }
-
-        .streamlit-expanderHeader {
+        /* ---------- Expander ---------- */
+        [data-testid="stExpander"] summary {
             background-color: rgba(47,75,124,0.06);
             border-radius: 8px;
             font-weight: 500;
             font-family: 'IBM Plex Mono', monospace;
         }
 
-        .stAlert {
-            background-color: #FFFFFF;
-            border-radius: 8px;
-            border-left: 3px solid var(--ochre);
-        }
-
+        /* ---------- Select boxes ---------- */
         [data-testid="stSelectbox"] > div > div {
            background: white !important;
            border: 1px solid rgba(27,36,48,0.15) !important;
@@ -217,18 +234,27 @@ def apply_custom_css():
            min-height: 38px !important;
         }
 
-        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
-           background: rgba(255,255,255,0.08) !important;
-           border: 1px solid rgba(255,255,255,0.2) !important;
-        }
-
         [data-testid="stSelectbox"] > div > div > div {
             color: var(--ink) !important;
             font-size: 14px !important;
         }
 
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+           background: rgba(255,255,255,0.08) !important;
+           border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+
         [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div > div {
-            color: white !important;
+            color: var(--sidebar-text) !important;
+        }
+
+        /* ---------- Toggles ---------- */
+        [data-testid="stToggle"] label p {
+            color: inherit;
+        }
+
+        [data-baseweb="toggle"] {
+            accent-color: var(--ochre);
         }
     </style>
     """, unsafe_allow_html=True)

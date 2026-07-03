@@ -1,12 +1,35 @@
 import streamlit as st
 import json
 import torch
+import os
+import zipfile
+import gdown
 from simpletransformers.question_answering import QuestionAnsweringModel
 import time
 from datetime import datetime
 from deep_translator import GoogleTranslator
 import re
 from difflib import SequenceMatcher
+
+
+# ============================================================
+# MODEL DOWNLOAD (from Google Drive)
+# The trained model is too large for GitHub, so it's hosted on
+# Google Drive as a zip and downloaded here the first time the
+# app starts on the server.
+# ============================================================
+MODEL_DIR = "outputs/nile_qa_model"
+MODEL_ZIP_FILE_ID = "1QkgrQGyS2rx1xUre1ZCc1TwS5MPudqZD"
+
+
+def ensure_model_downloaded():
+    if not os.path.exists(os.path.join(MODEL_DIR, "model.safetensors")):
+        os.makedirs("outputs", exist_ok=True)
+        zip_path = "nile_qa_model.zip"
+        gdown.download(id=MODEL_ZIP_FILE_ID, output=zip_path, quiet=False)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extractall("outputs")
+        os.remove(zip_path)
 
 
 # ============================================================
@@ -44,102 +67,146 @@ def setup_page_config():
 
 # ============================================================
 # CUSTOM CSS STYLING
-# Controls the visual appearance of the app
+# Matches the indigo / ochre design used on the People and
+# Projects pages: Newsreader for headings, Inter for body text,
+# IBM Plex Mono for small accents.
 # ============================================================
 def apply_custom_css():
     st.markdown("""
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+        :root {
+            --ink: #1B2430;
+            --paper: #F6F4EF;
+            --indigo: #2F4B7C;
+            --ochre: #C98A2C;
+            --sage: #5F6E5C;
+        }
+
         .main {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--paper);
         }
 
         .block-container {
-           padding-top: 1rem !important;
+           padding-top: 1.5rem !important;
            padding-bottom: 1rem !important;
            max-width: 100% !important;
         }
 
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+            color: var(--ink);
+        }
+
         [data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+            background: var(--ink);
         }
 
         [data-testid="stSidebar"] * {
-            color: white !important;
+            color: #F6F4EF !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            font-family: 'Newsreader', serif !important;
+            font-weight: 500 !important;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Newsreader', serif;
+            color: var(--ink);
+            font-weight: 500;
         }
 
         .stChatMessage {
-            background-color: rgba(147, 112, 219, 0.95);
-            border-radius: 15px;
+            background-color: #FFFFFF;
+            border: 1px solid rgba(27,36,48,0.12);
+            border-radius: 10px;
             padding: 15px;
             margin: 10px 0;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: none;
         }
 
         [data-testid="stChatMessageContent"] {
             background-color: transparent;
         }
 
-        h1 {
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        [data-testid="stMetricValue"] {
+            font-family: 'Newsreader', serif;
+            font-size: 26px;
+            color: var(--indigo);
         }
 
-        [data-testid="stMetricValue"] {
-            font-size: 28px;
-            color: #667eea;
+        [data-testid="stMetricLabel"] {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--sage);
         }
 
         .stButton>button {
-            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            background: var(--ochre);
             color: white;
             border: none;
-            border-radius: 25px;
-            padding: 10px 30px;
-            font-weight: bold;
-            transition: transform 0.2s;
+            border-radius: 100px;
+            padding: 10px 26px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            transition: transform 0.15s ease, background 0.15s ease;
         }
 
         .stButton>button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            background: var(--indigo);
+            transform: translateY(-1px);
+        }
+
+        [data-testid="stSidebar"] .stButton>button {
+            background: var(--ochre);
+            color: white;
         }
 
         .stChatInputContainer {
-            border-top: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 1px solid rgba(27,36,48,0.12);
             padding-top: 20px;
         }
 
         .streamlit-expanderHeader {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            font-weight: bold;
+            background-color: rgba(47,75,124,0.06);
+            border-radius: 8px;
+            font-weight: 500;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .stAlert {
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 10px;
-            border-left: 5px solid #667eea;
+            background-color: #FFFFFF;
+            border-radius: 8px;
+            border-left: 3px solid var(--ochre);
         }
 
         [data-testid="stSelectbox"] > div > div {
-           background: linear-gradient(90deg, #667eea 0%, #764ba2 100%) !important;
-           border: none !important;
-           border-radius: 25px !important;
-           color: white !important;
-           padding: 2px 10px !important;
-           min-height: 35px !important;
-           transition: transform 0.2s !important;
+           background: white !important;
+           border: 1px solid rgba(27,36,48,0.15) !important;
+           border-radius: 8px !important;
+           color: var(--ink) !important;
+           min-height: 38px !important;
         }
 
-        [data-testid="stSelectbox"] > div > div:hover {
-            transform: scale(1.05) !important;
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4) !important;
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
+           background: rgba(255,255,255,0.08) !important;
+           border: 1px solid rgba(255,255,255,0.2) !important;
         }
 
         [data-testid="stSelectbox"] > div > div > div {
-            color: white !important;
+            color: var(--ink) !important;
             font-size: 14px !important;
+        }
+
+        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div > div {
+            color: white !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -185,6 +252,7 @@ def load_dataset():
 @st.cache_resource
 def load_qa_model():
     try:
+        ensure_model_downloaded()
         use_cuda = torch.cuda.is_available()
         model = QuestionAnsweringModel(
             "distilbert",

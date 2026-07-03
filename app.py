@@ -64,15 +64,6 @@ def apply_custom_css():
             --sage: #5F6E5C;
         }
 
-        /* Safety net: never let icon fonts get caught by our
-           font-family overrides — they render as literal text
-           (e.g. "keyboard_double_arrow_left") if broken. */
-        [data-testid*="Icon"],
-        [class*="material-symbols"],
-        [class*="material-icons"] {
-            font-family: revert !important;
-        }
-
         .main {
             background: var(--paper);
         }
@@ -83,7 +74,14 @@ def apply_custom_css():
            max-width: 760px !important;
         }
 
-        html, body, [class*="css"] {
+        /* Font/color applied only to our own content areas — never
+           to html/body or any broad "[class*=...]" match, since
+           Streamlit's native toolbar and icon buttons live in the
+           same document and get caught by anything that broad,
+           breaking their icon glyphs (rendered via a ligature font
+           where the "text" IS the icon, e.g. "light_mode"). */
+        .main .block-container,
+        [data-testid="stSidebar"] {
             font-family: 'Inter', sans-serif;
             color: var(--ink);
         }

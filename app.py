@@ -158,6 +158,22 @@ def apply_custom_css():
             color: #E9E7E1;
         }
 
+        .na-about-link {
+            display: block;
+            text-align: center;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--ochre) !important;
+            text-decoration: none;
+            padding: 8px 0;
+        }
+
+        .na-about-link:hover {
+            color: #E9E7E1 !important;
+        }
+
         /* ---------- Control bar ---------- */
         [data-testid="stSelectbox"] > div > div {
            background: white !important;
@@ -515,6 +531,13 @@ def render_sidebar():
             if st.button("Clear all", use_container_width=True):
                 st.session_state.messages = []
                 st.rerun()
+
+        st.markdown("---")
+        st.markdown(
+            '<a href="https://aiisrg.com.ng/university-help-desk/projects.php" '
+            'target="_blank" class="na-about-link">About this app ↗</a>',
+            unsafe_allow_html=True
+        )
 
 
 # ============================================================

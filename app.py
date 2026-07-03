@@ -5,7 +5,6 @@ import os
 import zipfile
 import gdown
 from simpletransformers.question_answering import QuestionAnsweringModel
-import time
 from datetime import datetime
 from deep_translator import GoogleTranslator
 import re
@@ -33,35 +32,15 @@ def ensure_model_downloaded():
 
 
 # ============================================================
-# TRANSLATION FUNCTION
-# Translates text to a target Nigerian language (Hausa, Yoruba, Igbo)
-# If translation fails for any reason, it safely returns the original text
-# ============================================================
-def translate_to_nigerian_lang(text, target_lang='en'):
-    try:
-        if not text or not text.strip():
-            return text
-        if target_lang == 'en':
-            return text
-        result = GoogleTranslator(source='auto', target=target_lang).translate(text)
-        if result is None:
-            return text
-        return result
-    except:
-        return text
-
-
-# ============================================================
 # PAGE CONFIGURATION
-# Sets the browser tab title, icon, and layout of the Streamlit app
-# This must be the first Streamlit command called
+# No sidebar — everything lives in a top control bar instead.
 # ============================================================
 def setup_page_config():
     st.set_page_config(
         page_title="NileAssist - Multilingual Q&A Chat",
         page_icon="🎓",
-        layout="wide",
-        initial_sidebar_state="expanded"
+        layout="centered",
+        initial_sidebar_state="collapsed"
     )
 
 
@@ -69,7 +48,8 @@ def setup_page_config():
 # CUSTOM CSS STYLING
 # Matches the indigo / ochre design used on the People and
 # Projects pages: Newsreader for headings, Inter for body text,
-# IBM Plex Mono for small accents.
+# IBM Plex Mono for small accents. Built for a sidebar-free,
+# top-bar layout.
 # ============================================================
 def apply_custom_css():
     st.markdown("""
@@ -82,30 +62,25 @@ def apply_custom_css():
             --indigo: #2F4B7C;
             --ochre: #C98A2C;
             --sage: #5F6E5C;
-            --sidebar-text: #E9E7E1;
         }
 
-        /* ---------- Safety net: icon fonts are never touched ----------
-           Placed first and kept broad on purpose. Icons render via
-           ligature fonts (e.g. Material Symbols) where the visible
-           "text" is really an icon name — overriding font-family
-           breaks them. This rule always wins on specificity against
-           the plainer text rules below. */
+        /* Safety net: never let icon fonts get caught by our
+           font-family overrides — they render as literal text
+           (e.g. "keyboard_double_arrow_left") if broken. */
         [data-testid*="Icon"],
         [class*="material-symbols"],
         [class*="material-icons"] {
             font-family: revert !important;
         }
 
-        /* ---------- Base page ---------- */
         .main {
             background: var(--paper);
         }
 
         .block-container {
-           padding-top: 1.5rem !important;
+           padding-top: 2rem !important;
            padding-bottom: 1rem !important;
-           max-width: 100% !important;
+           max-width: 760px !important;
         }
 
         html, body, [class*="css"] {
@@ -113,73 +88,97 @@ def apply_custom_css():
             color: var(--ink);
         }
 
-        h1, h2, h3 {
+        /* ---------- Header ---------- */
+        .na-badge {
+            display: inline-block;
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--ochre);
+            background: rgba(201,138,44,0.1);
+            padding: 5px 12px;
+            border-radius: 100px;
+            margin-bottom: 10px;
+        }
+
+        .na-title {
             font-family: 'Newsreader', serif;
-            color: var(--ink);
             font-weight: 500;
+            font-size: 36px;
+            color: var(--ink);
+            margin: 0 0 4px;
         }
 
-        /* ---------- Sidebar ---------- */
-        [data-testid="stSidebar"] {
-            background: var(--ink);
+        .na-subtitle {
+            font-size: 15px;
+            color: var(--sage);
+            margin: 0 0 18px;
         }
 
-        [data-testid="stSidebar"] .stMarkdown p,
-        [data-testid="stSidebar"] label,
-        [data-testid="stSidebar"] .stMarkdown li {
-            color: var(--sidebar-text) !important;
-            font-family: 'Inter', sans-serif;
+        /* ---------- Control bar ---------- */
+        [data-testid="stSelectbox"] > div > div {
+           background: white !important;
+           border: 1px solid rgba(27,36,48,0.15) !important;
+           border-radius: 8px !important;
+           color: var(--ink) !important;
+           min-height: 38px !important;
         }
 
-        [data-testid="stSidebar"] h1,
-        [data-testid="stSidebar"] h2,
-        [data-testid="stSidebar"] h3 {
-            color: var(--sidebar-text) !important;
-            font-family: 'Newsreader', serif !important;
-            font-weight: 500 !important;
-        }
-
-        [data-testid="stSidebar"] hr {
-            border-color: rgba(233,231,225,0.15);
-        }
-
-        /* Alert boxes (success/warning/info/error) keep their own
-           light backgrounds and dark text for readability, even
-           inside the dark sidebar — deliberately NOT overridden
-           to match the sidebar text color. */
-        [data-testid="stSidebar"] [data-testid="stAlert"] p {
+        [data-testid="stSelectbox"] > div > div > div {
             color: var(--ink) !important;
+            font-size: 14px !important;
+        }
+
+        [data-testid="stSelectbox"] label p {
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--sage);
         }
 
         /* ---------- Buttons ---------- */
         .stButton > button {
-            background: var(--ochre);
-            color: white;
-            border: none;
+            background: transparent;
+            color: var(--indigo);
+            border: 1px solid rgba(47,75,124,0.3);
             border-radius: 100px;
-            padding: 10px 26px;
+            padding: 8px 18px;
             font-weight: 500;
+            font-size: 13.5px;
             font-family: 'Inter', sans-serif;
-            transition: transform 0.15s ease, background 0.15s ease;
+            transition: all 0.15s ease;
         }
 
         .stButton > button:hover {
             background: var(--indigo);
             color: white;
-            transform: translateY(-1px);
+            border-color: var(--indigo);
         }
 
         .stButton > button p {
             color: inherit !important;
         }
 
+        /* Primary action buttons (Clear all, Delete) get the ochre fill */
+        .na-primary-btn .stButton > button {
+            background: var(--ochre);
+            color: white;
+            border: none;
+        }
+
+        .na-primary-btn .stButton > button:hover {
+            background: var(--indigo);
+        }
+
         /* ---------- Chat ---------- */
         [data-testid="stChatMessage"] {
             background-color: #FFFFFF;
             border: 1px solid rgba(27,36,48,0.12);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin: 8px 0;
             box-shadow: none;
         }
 
@@ -195,75 +194,59 @@ def apply_custom_css():
             font-family: 'Inter', sans-serif;
         }
 
-        /* ---------- Metrics ---------- */
-        [data-testid="stMetricValue"] {
-            font-family: 'Newsreader', serif;
-            font-size: 26px;
-            color: var(--indigo);
-        }
-
-        [data-testid="stMetricLabel"] {
+        /* ---------- Expander (Manage chat) ---------- */
+        [data-testid="stExpander"] summary {
+            background-color: rgba(47,75,124,0.06);
+            border-radius: 8px;
+            font-weight: 500;
             font-family: 'IBM Plex Mono', monospace;
-            font-size: 11px;
+            font-size: 12.5px;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--sage);
+            letter-spacing: 0.06em;
         }
 
-        /* ---------- Alerts (main content area) ---------- */
+        [data-testid="stExpander"] {
+            border: none !important;
+            margin-bottom: 8px;
+        }
+
+        /* ---------- Alerts ---------- */
         [data-testid="stAlert"] {
             background-color: #FFFFFF;
             border-radius: 8px;
             border-left: 3px solid var(--ochre);
         }
 
-        /* ---------- Expander ---------- */
-        [data-testid="stExpander"] summary {
-            background-color: rgba(47,75,124,0.06);
-            border-radius: 8px;
-            font-weight: 500;
+        hr {
+            border-color: rgba(27,36,48,0.1);
+        }
+
+        .na-caption {
             font-family: 'IBM Plex Mono', monospace;
-        }
-
-        /* ---------- Select boxes ---------- */
-        [data-testid="stSelectbox"] > div > div {
-           background: white !important;
-           border: 1px solid rgba(27,36,48,0.15) !important;
-           border-radius: 8px !important;
-           color: var(--ink) !important;
-           min-height: 38px !important;
-        }
-
-        [data-testid="stSelectbox"] > div > div > div {
-            color: var(--ink) !important;
-            font-size: 14px !important;
-        }
-
-        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div {
-           background: rgba(255,255,255,0.08) !important;
-           border: 1px solid rgba(255,255,255,0.2) !important;
-        }
-
-        [data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div > div {
-            color: var(--sidebar-text) !important;
-        }
-
-        /* ---------- Toggles ---------- */
-        [data-testid="stToggle"] label p {
-            color: inherit;
-        }
-
-        [data-baseweb="toggle"] {
-            accent-color: var(--ochre);
+            font-size: 11px;
+            color: var(--sage);
         }
     </style>
     """, unsafe_allow_html=True)
 
 
 # ============================================================
+# TRANSLATION FUNCTION
+# ============================================================
+def translate_to_nigerian_lang(text, target_lang='en'):
+    try:
+        if not text or not text.strip():
+            return text
+        if target_lang == 'en':
+            return text
+        result = GoogleTranslator(source='auto', target=target_lang).translate(text)
+        return result if result is not None else text
+    except:
+        return text
+
+
+# ============================================================
 # SESSION STATE INITIALIZATION
-# Streamlit reruns the whole script on every interaction,
-# so session_state is used to remember things between reruns
 # ============================================================
 def initialize_session_state():
     if "messages" not in st.session_state:
@@ -273,14 +256,14 @@ def initialize_session_state():
         st.session_state.model_loaded = False
     if "dataset" not in st.session_state:
         st.session_state.dataset = []
-    if "auto_retrieve" not in st.session_state:
-        st.session_state.auto_retrieve = True
+    if "source_lang" not in st.session_state:
+        st.session_state.source_lang = "en"
+    if "target_lang" not in st.session_state:
+        st.session_state.target_lang = "en"
 
 
 # ============================================================
 # DATASET LOADER
-# Reads the FAQ JSON file from disk into memory.
-# @st.cache_data means it only loads once and reuses the result
 # ============================================================
 @st.cache_data
 def load_dataset():
@@ -294,8 +277,6 @@ def load_dataset():
 
 # ============================================================
 # MODEL LOADER
-# Loads the fine-tuned DistilBERT model.
-# @st.cache_resource means the model is only loaded once.
 # ============================================================
 @st.cache_resource
 def load_qa_model():
@@ -313,10 +294,18 @@ def load_qa_model():
         return None
 
 
+def ensure_model_loaded():
+    """Loads the model + dataset on first use, if not already loaded."""
+    if not st.session_state.model_loaded:
+        with st.spinner("Setting things up for the first time — this can take a minute..."):
+            st.session_state.model = load_qa_model()
+            st.session_state.dataset = load_dataset()
+            st.session_state.model_loaded = st.session_state.model is not None
+    return st.session_state.model_loaded
+
+
 # ============================================================
 # TEXT CLEANER
-# Removes punctuation and extra spaces from text before matching.
-# Example: "How do I pay fees?" → "how do i pay fees"
 # ============================================================
 def clean_text(text):
     text = text.lower()
@@ -327,16 +316,10 @@ def clean_text(text):
 
 # ============================================================
 # SMART CONTEXT MATCHING
-# Uses 4 methods combined to find the best FAQ match:
-# Method 1 - Jaccard Similarity: keyword overlap score
-# Method 2 - Sequence Matching: sentence structure similarity
-# Method 3 - Keyword Coverage: % of user keywords matched
-# Method 4 - Answer Keyword Check: topic confirmation
 # ============================================================
 def find_best_context(question, dataset, threshold=0.15):
     cleaned_question = clean_text(question)
 
-    # Words too common to help distinguish between topics
     stop_words = {
         'is', 'are', 'there', 'the', 'a', 'an', 'do', 'does', 'what',
         'how', 'where', 'when', 'at', 'in', 'of', 'for', 'to', 'please',
@@ -364,21 +347,16 @@ def find_best_context(question, dataset, threshold=0.15):
         if not faq_q_words:
             faq_q_words = set(cleaned_q.split())
 
-        # Method 1: Jaccard Similarity
         union_q = faq_q_words.union(query_words)
         jaccard_score = len(faq_q_words.intersection(query_words)) / len(union_q) if union_q else 0
 
-        # Method 2: Sequence Matching
         seq_score = SequenceMatcher(None, cleaned_question, cleaned_q).ratio()
 
-        # Method 3: Keyword Coverage
         coverage_score = len(query_words.intersection(faq_q_words)) / len(query_words) if query_words else 0
 
-        # Method 4: Answer Keyword Check
         union_a = faq_a_words.union(query_words)
         answer_score = len(faq_a_words.intersection(query_words)) / len(union_a) if union_a else 0
 
-        # Combined weighted score
         combined_score = (
             jaccard_score  * 0.40 +
             coverage_score * 0.30 +
@@ -399,18 +377,11 @@ def find_best_context(question, dataset, threshold=0.15):
 
 # ============================================================
 # RESPONSE GENERATOR
-# Called every time the user sends a message.
-# 1. Translates question to English if needed
-# 2. Searches dataset for best matching FAQ
-# 3. Returns answer directly if good match found
-# 4. Returns polite fallback if no match found
-# 5. Translates response back to user's chosen language
 # ============================================================
 def generate_response(prompt):
     source_lang = st.session_state.get("source_lang", "en")
     target_lang = st.session_state.get("target_lang", "en")
 
-    # Step 1: Translate question to English for searching
     english_prompt = prompt
     if source_lang != "en":
         try:
@@ -419,23 +390,15 @@ def generate_response(prompt):
         except:
             english_prompt = prompt
 
-    message_placeholder = st.empty()
-
-    # Step 2: Search dataset using smart matching
     matched_item, match_score = find_best_context(english_prompt, st.session_state.dataset)
 
     if matched_item and match_score >= 0.2:
-        # Good match — return FAQ answer directly
         full_response = matched_item["answer"]
         confidence = match_score
-        st.info(f"📍 Found relevant context (match: {match_score:.1%})")
     else:
-        # No match — polite fallback
         full_response = "I'm sorry, I don't have specific information on that. Please contact the Nile University help desk directly or visit https://www.nileuniversity.edu.ng for more information."
         confidence = 0.0
-        st.warning("🔍 No relevant match found.")
 
-    # Step 3: Translate response to user's chosen language
     if target_lang != "en":
         try:
             translated = GoogleTranslator(source='en', target=target_lang).translate(full_response)
@@ -444,242 +407,134 @@ def generate_response(prompt):
         except:
             pass
 
-    message_placeholder.markdown(full_response)
     return full_response, confidence
 
 
 # ============================================================
+# HEADER
+# ============================================================
+def render_header():
+    st.markdown("""
+        <div class="na-badge">AIISRG Student Project</div>
+        <div class="na-title">💬 NileAssist</div>
+        <div class="na-subtitle">Ask about tuition, accommodation, admissions, and programs — in English, Hausa, Yoruba, or Igbo.</div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
+# CONTROL BAR
+# Language selection + chat management, replacing the old sidebar.
+# ============================================================
+def render_control_bar():
+    lang_map = {"English": "en", "Hausa": "ha", "Yoruba": "yo", "Igbo": "ig"}
+
+    col1, col2 = st.columns(2)
+    with col1:
+        from_lang = st.selectbox("Question language", options=list(lang_map.keys()), index=0, key="from_lang")
+    with col2:
+        to_lang = st.selectbox("Response language", options=list(lang_map.keys()), index=0, key="to_lang")
+
+    st.session_state.source_lang = lang_map[from_lang]
+    st.session_state.target_lang = lang_map[to_lang]
+
+    if st.session_state.messages:
+        with st.expander("Manage chat"):
+            questions = [
+                (i, msg["content"][:40] + "..." if len(msg["content"]) > 40 else msg["content"])
+                for i, msg in enumerate(st.session_state.messages)
+                if msg["role"] == "user"
+            ]
+
+            selected_label = st.selectbox(
+                "Select a question to remove",
+                options=[q[1] for q in questions],
+                key="delete_select"
+            )
+            selected_index = next((q[0] for q in questions if q[1] == selected_label), None)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown('<div class="na-primary-btn">', unsafe_allow_html=True)
+                if st.button("Delete this exchange", use_container_width=True):
+                    if selected_index is not None:
+                        del st.session_state.messages[selected_index:selected_index + 2]
+                        st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+            with c2:
+                if st.button("Clear all", use_container_width=True):
+                    st.session_state.messages = []
+                    st.rerun()
+
+    st.markdown("---")
+
+
+# ============================================================
 # WELCOME MESSAGE
-# Shown only when the chat history is empty
 # ============================================================
 def render_welcome_message():
     with st.chat_message("assistant", avatar="🎓"):
         st.markdown("""
-        👋 **Welcome to NileAssist!**
+        **Welcome to NileAssist!** I can help with:
+        - Tuition fees
+        - Accommodation
+        - Admissions
+        - Programs
 
-        I'm here to help you with questions about:
-        - Tuition fees 💰
-        - Accommodation 🏠
-        - Admissions 📝
-        - Programs 📚
-        - And more!
-
-        Just type your question below to get started!
+        Type a question below to get started.
         """)
-
-
-# ============================================================
-# SIDEBAR
-# Left panel containing all controls:
-# - Load Model button
-# - Model status indicator
-# - Settings toggles
-# - Language selectors
-# - Selective chat deletion
-# ============================================================
-def render_sidebar():
-    with st.sidebar:
-        st.title("🎓 Nile University")
-        st.markdown("### NileAssist")
-        st.markdown("---")
-
-        # Load Model button
-        if st.button("🔄 Load Model", use_container_width=True):
-            with st.spinner("Loading model..."):
-                st.session_state.model = load_qa_model()
-                st.session_state.dataset = load_dataset()
-                if st.session_state.model:
-                    st.session_state.model_loaded = True
-                    st.success("✅ Model loaded!")
-                else:
-                    st.error("❌ Failed to load model")
-
-        # Model status indicator
-        if st.session_state.model_loaded:
-            st.success("🟢 Model Ready")
-        else:
-            st.warning("🟡 Model Not Loaded")
-
-        st.markdown("---")
-
-        # Settings toggles
-        st.markdown("### ⚙️ Settings")
-        st.session_state.auto_retrieve = st.toggle(
-            "Auto-retrieve context",
-            value=True,
-            help="Automatically find relevant context from the dataset"
-        )
-        show_confidence = st.toggle("Show confidence scores", value=True)
-
-        st.markdown("---")
-
-        # Language selection
-        st.markdown("### 🌍 Language")
-        from_lang = st.selectbox(
-            "Question language",
-            options=["English", "Hausa", "Yoruba", "Igbo"],
-            index=0,
-            key="from_lang"
-        )
-        to_lang = st.selectbox(
-            "Response language",
-            options=["English", "Hausa", "Yoruba", "Igbo"],
-            index=0,
-            key="to_lang"
-        )
-
-        lang_map = {
-            "English": "en",
-            "Hausa": "ha",
-            "Yoruba": "yo",
-            "Igbo": "ig"
-        }
-        st.session_state.source_lang = lang_map[from_lang]
-        st.session_state.target_lang = lang_map[to_lang]
-
-        st.markdown("---")
-
-        # --------------------------------------------------------
-        # CHAT DELETION SECTION
-        # Allows deleting a specific message pair (question +
-        # answer together) or clearing the entire chat history.
-        # --------------------------------------------------------
-        st.markdown("### 🗑️ Manage Chat")
-
-        if len(st.session_state.messages) == 0:
-            st.caption("No messages to delete.")
-        else:
-            # Build list of user questions for the dropdown
-            questions = []
-            for i, msg in enumerate(st.session_state.messages):
-                if msg["role"] == "user":
-                    short_q = msg["content"][:40] + "..." if len(msg["content"]) > 40 else msg["content"]
-                    questions.append((i, short_q))
-
-            # Dropdown to pick which message pair to delete
-            selected_label = st.selectbox(
-                "Select message to delete:",
-                options=[q[1] for q in questions],
-                key="delete_select"
-            )
-
-            # Find index of selected question
-            selected_index = next(
-                (q[0] for q in questions if q[1] == selected_label), None
-            )
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Delete selected question + its answer pair
-                if st.button("🗑️ Delete", use_container_width=True):
-                    if selected_index is not None:
-                        del st.session_state.messages[selected_index:selected_index + 2]
-                        st.rerun()
-
-            with col2:
-                # Delete all messages at once
-                if st.button("🧹 Clear All", use_container_width=True):
-                    st.session_state.messages = []
-                    st.rerun()
-
-        st.markdown("---")
-
-        st.markdown("### ℹ️ About")
-        st.markdown("""
-        This AI assistant answers questions about Nile University.
-
-        **How to use:**
-        1. Load the model
-        2. Select languages
-        3. Ask a question
-        4. Get instant answers!
-        """)
-
-    return show_confidence
 
 
 # ============================================================
 # CHAT HISTORY DISPLAY
-# Loops through all previous messages and displays them
-# as chat bubbles with optional confidence scores
 # ============================================================
-def render_chat_history(show_confidence):
+def render_chat_history():
     for message in st.session_state.messages:
         avatar = "👤" if message["role"] == "user" else "🎓"
         with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"])
-            if "confidence" in message and show_confidence and isinstance(message.get("confidence"), (int, float)):
-                st.caption(f"🎯 Confidence: {message['confidence']:.1%}")
-
-
-# ============================================================
-# FOOTER
-# Displays three metrics at the bottom:
-# - Total messages in this session
-# - Model status
-# - Current time
-# ============================================================
-def render_footer():
-    st.markdown("---")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("💬 Messages", len(st.session_state.messages))
-    with col2:
-        st.metric("🤖 Model", "Ready" if st.session_state.model_loaded else "Not Loaded")
-    with col3:
-        current_time = datetime.now().strftime("%H:%M")
-        st.metric("🕒 Time", current_time)
+            if "confidence" in message and isinstance(message.get("confidence"), (int, float)) and message["confidence"] > 0:
+                st.markdown(f'<span class="na-caption">CONFIDENCE {message["confidence"]:.0%}</span>', unsafe_allow_html=True)
 
 
 # ============================================================
 # MAIN APPLICATION ENTRY POINT
-# Runs everything in the correct order when app starts
 # ============================================================
 def main():
     setup_page_config()
     apply_custom_css()
     initialize_session_state()
 
-    show_confidence = render_sidebar()
-
-    st.title("💬 NileAssist - Multilingual Q&A Chat")
-    st.markdown("Ask me anything about Nile University!")
+    render_header()
+    render_control_bar()
 
     if len(st.session_state.messages) == 0:
         render_welcome_message()
 
-    render_chat_history(show_confidence)
+    render_chat_history()
 
     if prompt := st.chat_input("Ask a question about Nile University..."):
-        if not st.session_state.model_loaded:
-            st.error("⚠️ Please load the model first using the sidebar button!")
-        else:
-            # Save and display user message
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user", avatar="👤"):
-                st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
 
-            # Generate and display assistant response
-            with st.chat_message("assistant", avatar="🎓"):
+        with st.chat_message("assistant", avatar="🎓"):
+            if not ensure_model_loaded():
+                st.error("Couldn't load the model. Please refresh and try again.")
+            else:
                 with st.spinner("Thinking..."):
                     try:
                         full_response, confidence = generate_response(prompt)
-
-                        if show_confidence and isinstance(confidence, (int, float)):
-                            st.caption(f"🎯 Confidence: {confidence:.1%}")
+                        st.markdown(full_response)
+                        if confidence > 0:
+                            st.markdown(f'<span class="na-caption">CONFIDENCE {confidence:.0%}</span>', unsafe_allow_html=True)
 
                         st.session_state.messages.append({
                             "role": "assistant",
                             "content": full_response,
                             "confidence": confidence
                         })
-
                     except Exception as e:
-                        st.error(f"❌ Error generating response: {str(e)}")
-                        st.info("💡 Try rephrasing your question or check if the model is properly loaded.")
-
-    render_footer()
+                        st.error(f"Error generating response: {str(e)}")
 
 
 if __name__ == '__main__':
